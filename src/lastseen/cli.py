@@ -145,9 +145,9 @@ def request_stop(data_dir: Path) -> None:
 
 
 def stop_requested(data_dir: Path, started: float) -> bool:
-    """True when `lastseen stop` ran after this process started."""
+    """True when `lastseen stop` ran since this process started."""
     try:
-        return float((data_dir / STOP_FILE).read_text(encoding="utf-8")) > started
+        return float((data_dir / STOP_FILE).read_text(encoding="utf-8")) >= started
     except (OSError, ValueError):
         return False
 

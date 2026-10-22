@@ -1,0 +1,1751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>lastseen</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2C10.2 2 5.5 6.6 5.5 12.4 5.5 20.2 16 30 16 30s10.5-9.8 10.5-17.6C26.5 6.6 21.8 2 16 2z' fill='%232563eb'/%3E%3Ccircle cx='16' cy='12.5' r='4.6' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7; --panel: #ffffff; --panel-2: #f6f7f9; --text: #15181d; --muted: #5c6470;
+  --border: #e1e4ea; --accent: #2563eb; --accent-text: #ffffff; --accent-soft: #e9f0ff;
+  --ok: #157a3d; --ok-soft: #e5f5eb; --warn: #9a5208; --warn-soft: #fdf2df;
+  --bad: #c0262d; --bad-soft: #fdeceb; --gray: #5c6470; --gray-soft: #eef0f3;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 10px 30px rgba(16, 24, 40, .10);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1014; --panel: #171a20; --panel-2: #1d2128; --text: #e7e9ed; --muted: #9ca4b1;
+    --border: #2a2f39; --accent: #6b98ff; --accent-text: #0a1020; --accent-soft: #1b2643;
+    --ok: #5cd38a; --ok-soft: #14301f; --warn: #f4bd52; --warn-soft: #362810;
+    --bad: #ff8a8a; --bad-soft: #3a1818; --gray: #a5adba; --gray-soft: #242933;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .45);
+  }
+  .leaflet-tile-pane { filter: brightness(.8) contrast(1.1); }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  height: 100vh; height: 100dvh; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--gray-soft); padding: 1px 5px; border-radius: 5px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted, .hint { color: var(--muted); }
+.hint { font-size: 13px; }
+
+button, .btn, input, select { font: inherit; color: inherit; }
+button, .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 34px; padding: 6px 14px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); text-decoration: none;
+  white-space: nowrap; font-weight: 500;
+}
+button:hover:not(:disabled), .btn:hover { background: var(--panel-2); }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+button.danger { background: var(--bad); border-color: var(--bad); color: var(--panel); }
+button.danger-ghost { color: var(--bad); }
+button.link { border: 0; background: none; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; font-weight: 500; }
+button.icon { padding: 6px; width: 36px; }
+button.busy::before {
+  content: ""; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: spin .8s linear infinite; vertical-align: -3px; }
+
+label.field { display: block; margin: 0 0 12px; font-weight: 500; }
+label.field > input, label.field > select, .input-row input {
+  display: block; width: 100%; margin-top: 5px; padding: 9px 11px; min-height: 40px;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--panel); font-weight: 400;
+}
+input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.input-row { display: flex; gap: 8px; align-items: center; }
+.input-row input { margin: 0; }
+label.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; margin: 0 0 8px; cursor: pointer; }
+label.check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+.err { color: var(--bad); background: var(--bad-soft); padding: 8px 11px; border-radius: 9px; font-size: 13px; }
+.note { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
+.note.warn { background: var(--warn-soft); }
+.note.bad { background: var(--bad-soft); }
+.actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+.actions.start { justify-content: flex-start; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--gray-soft); color: var(--gray); min-height: 0; border: 0; white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+button.badge { cursor: pointer; text-decoration: underline dotted; padding: 2px 8px; }
+button.badge:hover:not(:disabled) { background: var(--warn-soft); filter: brightness(.97); }
+.sw { width: 12px; height: 12px; border-radius: 50%; background: var(--c, var(--gray)); flex: none; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--c, var(--gray)); }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo svg { width: 26px; height: 26px; flex: none; }
+.logo h1 { font-size: 18px; letter-spacing: -.01em; }
+
+/* screens */
+.center { height: 100%; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 32px; }
+.card { width: 100%; max-width: 480px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 26px; }
+.card h2 { font-size: 21px; margin: 18px 0 10px; letter-spacing: -.01em; }
+.card h2:focus { outline: none; }
+.tagline { color: var(--muted); margin: 4px 0 0; font-size: 13px; }
+.steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 18px 0 0; }
+.steps li { flex: 1; height: 4px; border-radius: 4px; background: var(--border); }
+.steps li.done, .steps li[aria-current] { background: var(--accent); }
+.steps li[aria-current] ~ li { background: var(--border); }
+.step-label { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.bullets { padding-left: 18px; margin: 0 0 14px; color: var(--muted); }
+.bullets li { margin: 3px 0; }
+details.fold { border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; margin: 0 0 14px; }
+details.fold > summary { cursor: pointer; padding: 10px 0; font-weight: 500; }
+details.fold[open] > summary { margin-bottom: 4px; }
+.code-input { font: 600 26px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; letter-spacing: .45em; text-align: center; }
+.choices { border: 0; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
+.choices label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choices input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; }
+.choices .rec { margin-left: auto; font-size: 12px; color: var(--accent); font-weight: 600; }
+.progress { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 10px; background: var(--panel-2); margin: 0 0 12px; }
+.first-list { list-style: none; padding: 0; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 10px; }
+.first-list li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.first-list li + li { border-top: 1px solid var(--border); }
+.first-list .grow { flex: 1; min-width: 0; }
+.first-list .owner { display: block; font-size: 12px; color: var(--muted); }
+
+/* app */
+#screen-app { display: flex; flex-direction: column; height: 100%; }
+.top { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); min-height: 56px; }
+.top .status { flex: 1; min-width: 0; margin: 0; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top .status.polling::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 7px; animation: pulse 1s ease-in-out infinite alternate; }
+@keyframes pulse { from { opacity: .3; } }
+.top-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.menu { position: relative; }
+.menu > summary { list-style: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 1001; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; min-width: 220px; }
+.menu-list a { display: block; padding: 8px 10px; border-radius: 7px; color: var(--text); text-decoration: none; }
+.menu-list a small { display: block; color: var(--muted); }
+.menu-list a:hover { background: var(--panel-2); }
+.menu-list a[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.banner { display: flex; align-items: center; gap: 12px; padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.banner.bad { background: var(--bad-soft); }
+.banner.warn { background: var(--warn-soft); }
+.banner p { margin: 0; flex: 1; }
+#net { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; border-bottom: 1px solid var(--border); }
+.layout { flex: 1; display: grid; grid-template-columns: minmax(300px, 380px) 1fr; grid-template-rows: minmax(0, 1fr); grid-template-areas: "side map"; min-height: 0; }
+.mapwrap { grid-area: map; position: relative; min-height: 0; }
+#map { position: absolute; inset: 0; background: var(--panel-2); }
+.map-off { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
+aside.side { grid-area: side; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-right: 1px solid var(--border); }
+.ranges { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); }
+.seg { display: flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { flex: 1; border: 0; background: none; padding: 5px 4px; min-height: 30px; font-size: 13px; border-radius: 7px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.custom { display: grid; gap: 8px; margin-top: 10px; }
+.custom label.field { margin: 0; font-size: 12px; display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; }
+.custom input { margin: 0 !important; padding: 6px 8px; min-height: 34px; font-size: 13px; min-width: 0; }
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 12px 14px 6px; display: flex; align-items: center; justify-content: space-between; }
+#devices { max-height: 50%; overflow: auto; border-bottom: 1px solid var(--border); flex: none; }
+#devices.more-below { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.dev-list { list-style: none; margin: 0; padding: 0 8px 8px; }
+.dev { padding: 7px 8px; border-radius: 10px; }
+.dev:hover { background: var(--panel-2); }
+.dev label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.dev input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); flex: none; }
+.dev-text { flex: 1; min-width: 0; }
+.dev-name { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-owner { font-size: 12px; color: var(--muted); }
+.dev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 4px 0 0 48px; font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); padding: 14px; text-align: center; }
+.empty p { margin: 0 0 8px; }
+#timeline { flex: 1; overflow: auto; min-height: 0; position: relative; }
+.tl-note { margin: 0 14px 8px; }
+.day { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: 10px 14px 6px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+.row { display: flex; width: 100%; text-align: left; gap: 10px; align-items: flex-start; border: 0; border-radius: 0; background: none; padding: 9px 14px; font-weight: 400; white-space: normal; justify-content: flex-start; border-bottom: 1px solid var(--border); }
+.row .sw { margin-top: 4px; }
+.row:hover:not(:disabled) { background: var(--panel-2); }
+.row.sel { background: var(--accent-soft); }
+.row:focus-visible { outline-offset: -2px; }
+.row-title { display: block; font-weight: 500; }
+.row-sub { display: block; font-size: 12px; color: var(--muted); }
+.more { margin: 12px auto; display: flex; }
+.scrub { position: absolute; z-index: 1000; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom)); width: min(560px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 8px 14px; }
+.scrub input { flex: 1; accent-color: var(--accent); min-width: 0; }
+.scrub output { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 128px; text-align: right; color: var(--muted); }
+
+/* leaflet theming */
+.leaflet-container { font: inherit; background: var(--panel-2); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.leaflet-popup-content-wrapper { border-radius: 12px; }
+.leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.5; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-bar { border: 1px solid var(--border) !important; box-shadow: var(--shadow) !important; }
+.leaflet-bar a, .leaflet-bar a:hover { background: var(--panel); color: var(--text); border-bottom-color: var(--border); }
+.leaflet-bar a.fit { font-size: 11px; font-weight: 600; }
+.leaflet-control-attribution { background: var(--panel) !important; color: var(--muted); opacity: .9; }
+.leaflet-control-attribution a { color: var(--accent); }
+.leaflet-tooltip.dev-tip { background: var(--panel); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); font-weight: 600; font-size: 12px; padding: 2px 7px; border-radius: 7px; }
+.leaflet-tooltip-top.dev-tip::before { border-top-color: var(--panel); }
+.pop strong { font-size: 14px; display: block; margin-bottom: 2px; }
+.pop .old { color: var(--warn); }
+.pop .links { display: flex; gap: 12px; margin-top: 6px; }
+
+/* dialogs */
+dialog { border: 1px solid var(--border); border-radius: 16px; padding: 0; background: var(--panel); color: var(--text); box-shadow: var(--shadow); width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); }
+dialog::backdrop { background: rgba(10, 12, 16, .45); }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); z-index: 1; }
+.dlg-head h2 { font-size: 18px; }
+.dlg-body { padding: 4px 20px 20px; }
+.dlg-body section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.dlg-body section:last-child { border-bottom: 0; }
+.dlg-body h3 { font-size: 14px; margin: 0 0 10px; }
+.dlg-body .danger-zone h3 { color: var(--bad); }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 12px; font-size: 13px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+.polls { list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; }
+.polls li { padding: 6px 0; border-top: 1px solid var(--border); }
+.polls .bad { color: var(--bad); }
+.small-dlg { width: min(440px, calc(100vw - 24px)); }
+.small-dlg .dlg-body { padding-top: 16px; }
+#toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3000; background: var(--text); color: var(--panel); padding: 9px 16px; border-radius: 10px; box-shadow: var(--shadow); font-size: 13px; max-width: calc(100vw - 32px); }
+#toast.bad { background: var(--bad); }
+
+@media (max-width: 720px) {
+  .top { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .top .status { order: 3; flex-basis: 100%; }
+  .top-actions .label { display: none; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: 55% minmax(0, 1fr); grid-template-areas: "map" "side"; }
+  aside.side { border-right: 0; border-top: 1px solid var(--border); overflow: auto; }
+  #devices { max-height: none; }
+  #devices.more-below { -webkit-mask-image: none; mask-image: none; }
+  .dev-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 10px; }
+  .dev { flex: 1 1 200px; max-width: 100%; border: 1px solid var(--border); padding: 6px 10px; }
+  .dev-meta { margin-left: 26px; }
+  .dev-meta > span:not(.badge) { display: none; }
+  #timeline { min-height: 240px; }
+  .scrub { bottom: 26px; padding: 6px 12px; }
+  .scrub output { min-width: 92px; }
+  .card { padding: 20px; }
+  .center { padding-top: 16px; }
+}
+@media (pointer: coarse) {
+  button, .btn, select, label.field > input, .seg button, .menu-list a { min-height: 44px; }
+  .row { min-height: 44px; }
+}
+</style>
+</head>
+<body>
+<div id="net" class="banner bad" role="alert" hidden><p>Can't reach lastseen. Is it still running?</p><button type="button" id="net-retry">Retry</button></div>
+
+<section id="screen-loading" class="center"><p class="muted"><span class="spinner"></span> Loading lastseen…</p></section>
+
+<section id="screen-unlock" class="center" hidden>
+  <div class="card">
+    <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2C10.2 2 5.5 6.6 5.5 12.4 5.5 20.2 16 30 16 30s10.5-9.8 10.5-17.6C26.5 6.6 21.8 2 16 2z" fill="#2563eb"/><circle cx="16" cy="12.5" r="4.6" fill="#fff"/></svg><h1>lastseen</h1></div>
+    <h2 tabindex="-1">Enter your lastseen password</h2>
+    <p class="muted">This lastseen is protected with a password.</p>
+    <form id="unlock-form" novalidate>
+      <label class="field">Password<input type="password" id="unlock-pw" autocomplete="current-password" required></label>
+      <p class="err" role="alert" hidden></p>
+      <div class="actions"><button class="primary" type="submit">Unlock</button></div>
+    </form>
+    <p class="hint" style="margin-top:14px">Forgot it? Run <code id="reset-cmd">lastseen reset-password</code> <span id="reset-where">on the computer running lastseen</span>, then reload this page or open the setup link it prints.</p>
+  </div>
+</section>
+
+<section id="screen-wizard" class="center" hidden>
+  <div class="card">
+    <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2C10.2 2 5.5 6.6 5.5 12.4 5.5 20.2 16 30 16 30s10.5-9.8 10.5-17.6C26.5 6.6 21.8 2 16 2z" fill="#2563eb"/><circle cx="16" cy="12.5" r="4.6" fill="#fff"/></svg><div><h1>lastseen</h1><p class="tagline">A private location history for your Apple devices.</p></div></div>
+    <div id="wiz-progress"><ol class="steps" aria-hidden="true"><li></li><li></li><li></li><li></li><li></li></ol><p class="step-label" id="wiz-step-label"></p></div>
+
+    <div class="wstep" data-step="protect" hidden>
+      <h2 tabindex="-1">Protect lastseen</h2>
+      <p>lastseen can be opened from other devices on your network, so choose a password first. You'll need it whenever you open lastseen.</p>
+      <p class="note warn http-warn" hidden>Your Apple password will cross the network unencrypted. Use HTTPS (reverse proxy) or a VPN such as Tailscale.</p>
+      <form id="protect-form" novalidate>
+        <div id="token-field">
+          <label class="field">Setup link<input id="setup-token" autocomplete="off" spellcheck="false" placeholder="http://…/?setup=…"></label>
+          <p class="hint">Find the setup link in lastseen's log / terminal (Docker: <code>docker compose logs lastseen</code>).</p>
+        </div>
+        <label class="field">New password<input type="password" id="protect-pw" autocomplete="new-password" minlength="8" required></label>
+        <label class="field">Repeat password<input type="password" id="protect-pw2" autocomplete="new-password" minlength="8" required></label>
+        <p class="hint">At least 8 characters.</p>
+        <p class="err" role="alert" hidden></p>
+        <div class="actions"><button class="primary" type="submit">Continue</button></div>
+      </form>
+    </div>
+
+    <div class="wstep" data-step="welcome" hidden>
+      <h2 tabindex="-1">Welcome</h2>
+      <p>lastseen keeps a private history of where your Apple devices have been, so you can see where a lost device was last seen. Everything stays on this computer. Not affiliated with Apple.</p>
+      <ul class="bullets">
+        <li>Works with the devices on your Apple Account and your Family Sharing group.</li>
+        <li>Checks in the background every few minutes.</li>
+        <li>Setup takes about two minutes.</li>
+      </ul>
+      <details class="fold" id="welcome-protect">
+        <summary>Protect lastseen with a password (recommended if others use this computer)</summary>
+        <label class="field">New password<input type="password" id="welcome-pw" autocomplete="new-password" minlength="8"></label>
+        <label class="field">Repeat password<input type="password" id="welcome-pw2" autocomplete="new-password" minlength="8"></label>
+      </details>
+      <p class="err" role="alert" hidden></p>
+      <div class="actions"><button class="primary" type="button" id="welcome-next">Get started</button></div>
+    </div>
+
+    <div class="wstep" data-step="apple" hidden>
+      <h2 tabindex="-1">Sign in to your Apple Account</h2>
+      <p class="muted">Use the Apple ID you use for iCloud and Find My.</p>
+      <p class="note warn http-warn" hidden>Your Apple password will cross the network unencrypted. Use HTTPS (reverse proxy) or a VPN such as Tailscale.</p>
+      <form id="apple-form" novalidate>
+        <label class="field">Apple ID<input type="text" inputmode="email" id="apple-id" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+        <label class="field">Password<input type="password" id="apple-pw" autocomplete="current-password" required></label>
+        <p class="hint">Your password goes only to Apple. lastseen saves it in this computer's keychain (or in its private data folder) so it can stay signed in.</p>
+        <div class="progress" hidden><span class="spinner"></span><span>Contacting Apple… this can take up to a minute.</span></div>
+        <p class="err" role="alert" hidden></p>
+        <div class="actions"><button type="button" id="apple-back">Back</button><button type="button" class="wiz-cancel" hidden>Cancel</button><button class="primary" type="submit">Sign in</button></div>
+      </form>
+    </div>
+
+    <div class="wstep" data-step="code" hidden>
+      <h2 tabindex="-1">Enter the verification code</h2>
+      <p id="code-msg"></p>
+      <p class="note" id="code-notice" hidden></p>
+      <form id="code-form" novalidate>
+        <label class="field">6-digit code<input id="code-input" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></label>
+        <div class="progress" hidden><span class="spinner"></span><span>Checking the code with Apple…</span></div>
+        <p class="err" role="alert" hidden></p>
+        <div class="actions"><button type="button" class="wiz-cancel" hidden>Cancel</button><button class="primary" type="submit">Verify</button></div>
+      </form>
+      <p class="hint" style="margin-top:14px">Didn't get a code? <button type="button" class="link" id="code-resend">Send a new code</button></p>
+    </div>
+
+    <div class="wstep" data-step="key" hidden>
+      <h2 tabindex="-1">Use your security key</h2>
+      <p id="key-msg">Your Apple Account uses a security key. Plug it into the computer running lastseen, press Continue, then touch the key.</p>
+      <p class="hint" id="key-names" hidden></p>
+      <div class="progress" hidden><span class="spinner"></span><span>Touch your security key now…</span></div>
+      <p class="err" role="alert" hidden></p>
+      <div class="actions"><button type="button" class="wiz-cancel" hidden>Cancel</button><button class="primary" type="button" id="key-go">Continue</button></div>
+    </div>
+
+    <div class="wstep" data-step="interval" hidden>
+      <h2 tabindex="-1" id="interval-title">How often should lastseen check?</h2>
+      <p class="note warn" id="untrusted" hidden>Signed in, but Apple didn't trust this computer, so you may need to sign in again sooner.</p>
+      <div id="interval-pick">
+        <fieldset class="choices">
+          <legend class="sr-only">Check every</legend>
+          <label><input type="radio" name="wiz-int" value="5"> Every 5 minutes</label>
+          <label><input type="radio" name="wiz-int" value="10"> Every 10 minutes</label>
+          <label><input type="radio" name="wiz-int" value="15" checked> Every 15 minutes <span class="rec">Recommended</span></label>
+          <label><input type="radio" name="wiz-int" value="30"> Every 30 minutes</label>
+          <label><input type="radio" name="wiz-int" value="60"> Every hour</label>
+        </fieldset>
+        <p class="hint">More often uses a little more battery on your devices.</p>
+      </div>
+      <div class="progress" id="first-progress" hidden><span class="spinner"></span><span>Asking your devices where they are… this can take up to a minute.</span></div>
+      <div id="first-result" hidden>
+        <p id="first-summary"></p>
+        <ul class="first-list" id="first-devices"></ul>
+        <div class="note" id="first-explainer" style="margin-bottom:12px" hidden></div>
+      </div>
+      <p class="err" role="alert" hidden></p>
+      <div class="actions"><button type="button" id="interval-skip" hidden>Continue anyway</button><button class="primary" type="button" id="interval-go">Start</button></div>
+    </div>
+
+    <div class="wstep" data-step="service" hidden>
+      <h2 tabindex="-1">Keep it running</h2>
+      <p>lastseen only records while it's running.</p>
+      <div id="svc-choice">
+        <label class="check"><input type="checkbox" id="svc-check" checked> Start automatically when this computer starts</label>
+        <p class="hint" id="svc-detail"></p>
+      </div>
+      <p class="note" id="svc-other" hidden></p>
+      <p class="err" role="alert" hidden></p>
+      <div class="actions"><button class="primary" type="button" id="svc-finish">Finish</button></div>
+    </div>
+  </div>
+</section>
+
+<div id="screen-app" hidden>
+  <header class="top">
+    <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2C10.2 2 5.5 6.6 5.5 12.4 5.5 20.2 16 30 16 30s10.5-9.8 10.5-17.6C26.5 6.6 21.8 2 16 2z" fill="#2563eb"/><circle cx="16" cy="12.5" r="4.6" fill="#fff"/></svg><h1>lastseen</h1></div>
+    <p class="status" id="status-line" role="status" aria-live="polite"></p>
+    <div class="top-actions">
+      <button type="button" id="check-now" title="Check now"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg><span class="label">Check now</span></button>
+      <details class="menu" id="dl-menu">
+        <summary class="btn" title="Download"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span class="label">Download</span></summary>
+        <div class="menu-list">
+          <a id="dl-gpx" download>GPX<small>For maps and GPS apps</small></a>
+          <a id="dl-csv" download>CSV<small>For spreadsheets</small></a>
+          <p class="hint" id="dl-none" style="margin:6px 10px">Select a device with locations in this range first.</p>
+        </div>
+      </details>
+      <button type="button" class="icon" id="open-settings" aria-label="Settings" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+  </header>
+  <div id="app-banner" class="banner" role="alert" hidden><p id="app-banner-text"></p><button type="button" id="app-banner-btn" hidden>Sign in again</button></div>
+  <div id="svc-banner" class="banner" hidden><p id="svc-banner-text">lastseen only records while it's running. Start it automatically when this computer starts?</p><button type="button" class="primary" id="svc-banner-on">Turn on</button><button type="button" id="svc-banner-off">Not now</button></div>
+  <div class="layout">
+    <main class="mapwrap">
+      <div id="map" aria-label="Map of locations"></div>
+      <div class="map-off" id="map-off" hidden><p>The map couldn't load (offline?). Your history is safe.</p></div>
+      <div class="scrub" id="scrub" hidden>
+        <input type="range" id="scrub-input" aria-label="Time" step="60000">
+        <output id="scrub-label" for="scrub-input">Now</output>
+      </div>
+    </main>
+    <aside class="side" aria-label="History">
+      <nav class="ranges" aria-label="Time range">
+        <div class="seg" id="range-btns">
+          <button type="button" data-range="24h" aria-pressed="true">24h</button>
+          <button type="button" data-range="7d" aria-pressed="false">7 days</button>
+          <button type="button" data-range="30d" aria-pressed="false">30 days</button>
+          <button type="button" data-range="all" aria-pressed="false">All</button>
+          <button type="button" data-range="custom" aria-pressed="false">Custom</button>
+        </div>
+        <div class="custom" id="custom" hidden>
+          <label class="field">From<input type="datetime-local" id="from"></label>
+          <label class="field">To<input type="datetime-local" id="to"></label>
+          <p class="err" role="alert" hidden id="custom-err">From must be before To</p>
+        </div>
+      </nav>
+      <div id="devices">
+        <div class="section-title"><span>Devices</span></div>
+        <ul class="dev-list" id="dev-list"></ul>
+      </div>
+      <div id="timeline">
+        <div class="section-title"><span>Timeline</span></div>
+        <div id="tl-body"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <div class="dlg-head"><h2 id="settings-title">Settings</h2><button type="button" class="icon" data-close aria-label="Close">✕</button></div>
+  <div class="dlg-body">
+    <section>
+      <h3>Status</h3>
+      <dl class="kv" id="set-status"></dl>
+      <label class="field" for="set-dir">Data folder</label>
+      <div class="input-row"><input id="set-dir" readonly><button type="button" id="set-dir-copy">Copy</button></div>
+    </section>
+    <section>
+      <h3>Checking</h3>
+      <label class="field">How often<select id="set-interval">
+        <option value="5">Every 5 minutes</option><option value="10">Every 10 minutes</option>
+        <option value="15">Every 15 minutes (recommended)</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option>
+      </select></label>
+      <label class="field">Keep history<select id="set-retention">
+        <option value="0">Forever</option><option value="30">30 days</option><option value="90">90 days</option>
+        <option value="365">1 year</option><option value="730">2 years</option>
+      </select></label>
+      <p class="err" role="alert" hidden id="set-check-err"></p>
+    </section>
+    <section>
+      <h3>Start automatically</h3>
+      <div id="set-svc-wrap"><label class="check"><input type="checkbox" id="set-svc" role="switch"> Start lastseen when this computer starts</label></div>
+      <p class="hint" id="set-svc-detail"></p>
+      <p class="err" role="alert" hidden id="set-svc-err"></p>
+    </section>
+    <section>
+      <h3>Access password</h3>
+      <p class="hint" id="set-pw-state"></p>
+      <form id="set-pw-form" novalidate>
+        <label class="field" id="set-pw-cur-wrap">Current password<input type="password" id="set-pw-cur" autocomplete="current-password"></label>
+        <label class="field">New password<input type="password" id="set-pw-new" autocomplete="new-password" minlength="8"></label>
+        <label class="field">Repeat new password<input type="password" id="set-pw-new2" autocomplete="new-password" minlength="8"></label>
+        <p class="err" role="alert" hidden id="set-pw-err"></p>
+        <div class="actions start">
+          <button type="submit" class="primary" id="set-pw-save">Set password</button>
+          <button type="button" id="set-pw-remove" hidden>Remove password</button>
+          <button type="button" id="set-lock" hidden>Lock now</button>
+        </div>
+      </form>
+    </section>
+    <section>
+      <h3>Apple Account</h3>
+      <p id="set-acct"></p>
+      <p class="hint" id="set-cred"></p>
+      <div class="actions start">
+        <button type="button" id="set-relogin" hidden>Sign in again</button>
+        <button type="button" class="danger-ghost" id="set-signout">Sign out &amp; forget password</button>
+      </div>
+      <p class="hint" style="margin-top:8px">Signing out keeps your history.</p>
+      <p class="err" role="alert" hidden id="set-acct-err"></p>
+    </section>
+    <section class="danger-zone">
+      <h3>Danger zone</h3>
+      <p class="hint">Permanently delete every recorded location. This can't be undone.</p>
+      <button type="button" class="danger" id="set-delete">Delete all history</button>
+      <p class="err" role="alert" hidden id="set-delete-err"></p>
+    </section>
+    <section>
+      <details class="fold" id="set-polls"><summary>Recent checks</summary><ul class="polls" id="set-polls-list"></ul></details>
+    </section>
+    <section>
+      <h3>About</h3>
+      <p>lastseen <span id="set-version"></span> · MIT License</p>
+      <p class="hint">Works with iCloud Find My. Not affiliated with Apple.</p>
+      <a href="https://github.com/sharifrafid/lastseen" target="_blank" rel="noopener noreferrer">github.com/sharifrafid/lastseen</a>
+    </section>
+  </div>
+</dialog>
+
+<dialog id="confirm" class="small-dlg" aria-labelledby="cf-title">
+  <div class="dlg-body">
+    <h2 id="cf-title" style="font-size:18px;margin-bottom:10px"></h2>
+    <p id="cf-text"></p>
+    <label class="field" id="cf-type-wrap" hidden><span id="cf-type-label"></span><input id="cf-type" autocomplete="off" spellcheck="false"></label>
+    <div class="actions"><button type="button" id="cf-cancel">Cancel</button><button type="button" class="danger" id="cf-ok">OK</button></div>
+  </div>
+</dialog>
+
+<dialog id="explain" class="small-dlg" aria-labelledby="ex-title">
+  <div class="dlg-body">
+    <h2 id="ex-title" style="font-size:18px;margin-bottom:10px">Why is there no location?</h2>
+    <div id="ex-body"></div>
+    <div class="actions"><button type="button" class="primary" data-close>Got it</button></div>
+  </div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+'use strict';
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const PALETTE = ['#2563eb', '#e11d48', '#059669', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'];
+const GRAY = '#8a93a0';
+const HOUR = 3600e3, DAY = 24 * HOUR;
+const RANGES = { '24h': DAY, '7d': 7 * DAY, '30d': 30 * DAY, all: null };
+const PAGE = 300;
+
+const S = {
+  status: null, devices: [], meta: new Map(), fixes: [], byDev: new Map(), truncated: false, limit: 0,
+  range: { preset: '24h', start: null, end: null }, start: null, end: null, seq: 0, fitNext: true,
+  hidden: new Set(load('hidden') || []), stays: [], stayOf: new Map(), rowEls: new Map(), shown: 0, sel: null,
+};
+
+// ---------- helpers ----------
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid);
+  return el;
+}
+function load(key) { try { return JSON.parse(localStorage.getItem('lastseen.' + key)); } catch { return null; } }
+function save(key, val) { try { localStorage.setItem('lastseen.' + key, JSON.stringify(val)); } catch {} }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
+
+const tf = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const df = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const dfy = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+const dateOnly = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtTime = ms => tf.format(ms);
+function fmtDate(ms) { return (new Date(ms).getFullYear() === new Date().getFullYear() ? df : dfy).format(ms); }
+function dayLabel(ms) {
+  const d = new Date(ms), t = new Date();
+  const key = x => x.toDateString();
+  if (key(d) === key(t)) return 'Today';
+  if (key(d) === key(new Date(t - DAY))) return 'Yesterday';
+  return fmtDate(ms);
+}
+function ago(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const hr = Math.floor(m / 60);
+  if (hr < 24) return `${hr} h ago`;
+  const d = Math.floor(hr / 24);
+  return d < 60 ? `${d} d ago` : `on ${dateOnly.format(ms)}`;
+}
+const fmtWhen = ms => `${dayLabel(ms)} · ${fmtTime(ms)}`;
+function fmtDur(ms) {
+  const m = Math.max(1, Math.round(ms / 60000));
+  if (m < 60) return `${m} m`;
+  const hr = Math.floor(m / 60), r = m % 60;
+  if (hr < 48) return r ? `${hr} h ${r} m` : `${hr} h`;
+  return `${Math.round(hr / 24)} d`;
+}
+const fmtDist = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+function distM(a1, o1, a2, o2) {
+  const r = Math.PI / 180, x = (o2 - o1) * r * Math.cos((a1 + a2) / 2 * r), y = (a2 - a1) * r;
+  return Math.sqrt(x * x + y * y) * 6371000;
+}
+function toLocalInput(ms) {
+  const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+function posType(t) {
+  const s = String(t || '').toLowerCase();
+  if (s.startsWith('gps')) return 'GPS';
+  if (s.includes('wifi')) return 'Wi-Fi';
+  if (s.includes('cell')) return 'Cell';
+  return null;
+}
+function showErr(el, msg) { if (!el) return; el.textContent = msg || ''; el.hidden = !msg; }
+
+let toastTimer;
+function toast(msg, bad) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+
+class ApiError extends Error {
+  constructor(code, message, status) { super(message); this.code = code; this.status = status; }
+}
+async function api(path, opts = {}) {
+  const init = { method: opts.method || 'GET', credentials: 'same-origin', headers: {} };
+  if (opts.body !== undefined) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(opts.body);
+  }
+  let r;
+  try { r = await fetch(path, init); } catch {
+    $('#net').hidden = false;
+    throw new ApiError('network', "Can't reach lastseen. Is it still running?", 0);
+  }
+  $('#net').hidden = true;
+  let data = null;
+  try { data = await r.json(); } catch {}
+  if (!r.ok) {
+    const err = new ApiError(data?.error || `http_${r.status}`, data?.message || 'Something went wrong. Please try again.', r.status);
+    if (r.status === 401 && err.code === 'auth_required') showUnlock();
+    throw err;
+  }
+  return data;
+}
+const post = (path, body = {}) => api(path, { method: 'POST', body });
+
+async function busy(btn, errEl, fn, spin = true) {
+  showErr(errEl, '');
+  btn.disabled = true; btn.classList.toggle('busy', spin); btn.setAttribute('aria-busy', 'true');
+  try { return await fn(); } catch (e) {
+    if (errEl) showErr(errEl, e.message); else toast(e.message, true);
+  } finally {
+    btn.disabled = false; btn.classList.remove('busy'); btn.removeAttribute('aria-busy');
+  }
+}
+
+function show(name) {
+  for (const s of ['loading', 'unlock', 'wizard', 'app']) $('#screen-' + s).hidden = s !== name;
+  if (name !== 'app') stopTimers();
+}
+
+// ---------- boot ----------
+async function boot() {
+  let st;
+  try { st = await api('api/status'); } catch (e) {
+    if (e.code !== 'network') toast(e.message, true);
+    return;
+  }
+  S.status = st;
+  const a = st.auth;
+  if (a.required && !a.logged_in && a.password_set) return showUnlock();
+  if (a.setup_token_required) return wizard('protect');
+  if (!st.account.configured) return wizard('welcome');
+  showApp();
+}
+$('#net-retry').addEventListener('click', () => { $('#net').hidden = true; S.status && !$('#screen-app').hidden ? refreshStatus() : boot(); });
+
+function showUnlock() {
+  if (!$('#screen-unlock').hidden) return;
+  for (const d of $$('dialog[open]')) d.close();
+  const docker = !!S.status?.docker;
+  $('#reset-cmd').textContent = docker ? 'docker compose exec lastseen lastseen reset-password' : 'lastseen reset-password';
+  $('#reset-where').textContent = docker ? 'on the Docker host' : 'on the computer running lastseen';
+  show('unlock');
+  $('#unlock-pw').value = '';
+  $('#unlock-pw').focus();
+}
+$('#unlock-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const form = e.currentTarget, pw = $('#unlock-pw').value;
+  if (!pw) return showErr($('.err', form), 'Enter your password.');
+  busy($('button[type=submit]', form), $('.err', form), async () => {
+    try { await post('api/session/login', { password: pw }); } catch (err) {
+      $('#unlock-pw').select();
+      throw err;
+    }
+    $('#screen-unlock').hidden = true;
+    boot();
+  });
+});
+
+// ---------- wizard ----------
+const W = { relogin: false, trusted: true, waiting: false };
+const STEP_INDEX = { protect: 0, welcome: 0, apple: 1, code: 2, key: 2, interval: 3, service: 4 };
+const STEP_NAMES = { protect: 'Protect', welcome: 'Welcome', apple: 'Sign in', code: 'Verify', key: 'Verify', interval: 'First check', service: 'Finish' };
+
+function wizard(step, opts = {}) {
+  if (opts.relogin !== undefined) W.relogin = opts.relogin;
+  show('wizard');
+  const remoteHttp = location.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  for (const n of $$('.http-warn')) n.hidden = !remoteHttp;
+  for (const n of $$('.wiz-cancel')) n.hidden = !W.relogin;
+  $('#wiz-progress').hidden = W.relogin;
+  for (const s of $$('.wstep')) s.hidden = s.dataset.step !== step;
+  const idx = STEP_INDEX[step];
+  $$('.steps li').forEach((li, i) => {
+    li.classList.toggle('done', i < idx);
+    if (i === idx) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+  });
+  $('#wiz-step-label').textContent = `Step ${idx + 1} of 5 · ${STEP_NAMES[step]}`;
+  const pane = $(`.wstep[data-step="${step}"]`);
+  for (const e of $$('.err', pane)) showErr(e, '');
+  ({ protect: enterProtect, welcome: enterWelcome, apple: enterApple, interval: enterInterval, service: enterService }[step] || (() => {}))(opts);
+  const first = $('input:not([type=hidden]):not([type=radio]):not([type=checkbox])', pane);
+  (first && first.offsetParent ? first : $('h2', pane)).focus();
+}
+for (const b of $$('.wiz-cancel')) b.addEventListener('click', () => { W.relogin = false; boot(); });
+
+function pwPair(a, b) {
+  if (a.length < 8) return 'Use at least 8 characters.';
+  if (a.length > 256) return 'Use at most 256 characters.';
+  if (a !== b) return "The two passwords don't match.";
+  return null;
+}
+
+function enterProtect() {
+  const token = new URLSearchParams(location.search).get('setup');
+  if (token) {
+    W.setupToken = token;
+    history.replaceState(null, '', location.pathname);
+  }
+  $('#token-field').hidden = !!W.setupToken;
+}
+$('#protect-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const form = e.currentTarget, err = $('.err', form);
+  let token = W.setupToken || $('#setup-token').value.trim();
+  const m = token.match(/[?&]setup=([^&#\s]+)/);
+  if (m) token = decodeURIComponent(m[1]);
+  if (!token) return showErr(err, 'Paste the setup link from lastseen\'s log.');
+  const pw = $('#protect-pw').value, problem = pwPair(pw, $('#protect-pw2').value);
+  if (problem) return showErr(err, problem);
+  busy($('button[type=submit]', form), err, async () => {
+    try { await post('api/access-password', { password: pw, setup_token: token }); } catch (ex) {
+      if (ex.code === 'bad_setup_token') { W.setupToken = null; $('#token-field').hidden = false; }
+      throw ex;
+    }
+    W.setupToken = null;
+    S.status = await api('api/status');
+    S.status.account.configured ? showApp() : wizard('welcome');
+  });
+});
+
+function enterWelcome() {
+  $('#welcome-protect').hidden = !!S.status?.auth?.password_set;
+}
+$('#welcome-next').addEventListener('click', e => {
+  const pw = $('#welcome-pw').value, err = $('[data-step=welcome] .err');
+  if (!pw || $('#welcome-protect').hidden) return wizard('apple');
+  const problem = pwPair(pw, $('#welcome-pw2').value);
+  if (problem) { $('#welcome-protect').open = true; return showErr(err, problem); }
+  busy(e.currentTarget, err, async () => {
+    await post('api/access-password', { password: pw });
+    S.status.auth.password_set = true;
+    $('#welcome-pw').value = $('#welcome-pw2').value = '';
+    wizard('apple');
+  });
+});
+
+function enterApple() {
+  $('#apple-back').hidden = W.relogin;
+  const id = S.status?.account?.apple_id;
+  if (id && !$('#apple-id').value) $('#apple-id').value = id;
+  $('#apple-pw').value = '';
+  $('[data-step=apple] .progress').hidden = true;
+}
+$('#apple-back').addEventListener('click', () => wizard('welcome'));
+function handleLoginStep(res) {
+  if (res.step === 'done') return loginDone(res.trusted);
+  if (res.step === 'security_key') {
+    wizard('key');
+    const names = res.key_names || [];
+    $('#key-names').textContent = names.length ? `Registered keys: ${names.join(', ')}` : '';
+    $('#key-names').hidden = !names.length;
+    if (res.supported === false) {
+      $('#key-msg').textContent = "Security keys can't be used from Docker. Run lastseen directly on a computer to sign in.";
+      $('#key-go').hidden = true;
+    } else {
+      $('#key-msg').textContent = 'Your Apple Account uses a security key. Plug it into the computer running lastseen, press Continue, then touch the key.';
+      $('#key-go').hidden = false;
+    }
+    return;
+  }
+  wizard('code');
+  resendCooldown();
+  $('#code-msg').textContent = res.method === 'sms'
+    ? 'Enter the 6-digit code sent by text message to your phone.'
+    : 'Enter the 6-digit code shown on your iPhone, iPad or Mac.';
+  $('#code-notice').textContent = res.notice || '';
+  $('#code-notice').hidden = !res.notice;
+  $('#code-input').value = '';
+  $('#code-input').focus();
+}
+$('#apple-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const form = e.currentTarget, err = $('.err', form);
+  const id = $('#apple-id').value.trim(), pw = $('#apple-pw').value;
+  if (!id || !pw) return showErr(err, 'Enter your Apple ID and password.');
+  const prog = $('.progress', form);
+  busy($('button[type=submit]', form), err, async () => {
+    prog.hidden = false;
+    try { handleLoginStep(await post('api/icloud/login', { apple_id: id, password: pw })); }
+    finally {
+      prog.hidden = true;
+      $('#apple-pw').value = '';
+      if (!$('[data-step=apple]').hidden) setTimeout(() => $('#apple-pw').focus());
+    }
+  }, false);
+});
+
+function submitCode() {
+  const form = $('#code-form'), err = $('.err', form), input = $('#code-input');
+  const code = input.value.replace(/\D/g, '');
+  if (code.length !== 6) return showErr(err, 'Enter the 6-digit code.');
+  const prog = $('.progress', form);
+  busy($('button[type=submit]', form), err, async () => {
+    prog.hidden = false;
+    try { handleLoginStep(await post('api/icloud/code', { code })); } catch (ex) {
+      input.value = '';
+      if (ex.code === 'code_expired' || ex.code === 'no_pending_login') {
+        wizard('apple');
+        showErr($('[data-step=apple] .err'), ex.message);
+        return;
+      }
+      throw ex;
+    } finally { prog.hidden = true; if (!$('[data-step=code]').hidden) input.focus(); }
+  }, false);
+}
+$('#code-form').addEventListener('submit', e => { e.preventDefault(); submitCode(); });
+$('#code-input').addEventListener('input', e => {
+  const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+  if (v !== e.target.value) e.target.value = v;
+  if (v.length === 6 && !$('#code-form button[type=submit]').disabled) submitCode();
+});
+// Each new code means a new sign-in to Apple, so they are spaced out.
+let resendTimer;
+function resendCooldown(seconds = 30) {
+  const b = $('#code-resend'), until = Date.now() + seconds * 1000;
+  clearInterval(resendTimer);
+  const tick = () => {
+    const left = Math.ceil((until - Date.now()) / 1000);
+    b.disabled = left > 0;
+    b.textContent = left > 0 ? `Send a new code (${left} s)` : 'Send a new code';
+    if (left <= 0) clearInterval(resendTimer);
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+$('#code-resend').addEventListener('click', e => {
+  busy(e.currentTarget, $('#code-form .err'), async () => {
+    try {
+      handleLoginStep(await post('api/icloud/resend'));
+      toast('A new code is on its way.');
+    } catch (ex) {
+      if (ex.code === 'no_pending_login') { wizard('apple'); showErr($('[data-step=apple] .err'), ex.message); return; }
+      throw ex;
+    }
+  });  // the cooldown tick disables the link again within a second
+});
+$('#key-go').addEventListener('click', e => {
+  const pane = $('[data-step=key]'), prog = $('.progress', pane);
+  busy(e.currentTarget, $('.err', pane), async () => {
+    prog.hidden = false;
+    try { handleLoginStep(await post('api/icloud/security-key')); } catch (ex) {
+      if (ex.code === 'no_pending_login') { wizard('apple'); showErr($('[data-step=apple] .err'), ex.message); return; }
+      throw ex;
+    } finally { prog.hidden = true; }
+  }, false);
+});
+
+async function loginDone(trusted) {
+  W.trusted = trusted !== false;
+  try { S.status = await api('api/status'); } catch {}
+  if (W.relogin) {
+    W.relogin = false;
+    try { await post('api/poll'); } catch {}
+    if (!W.trusted) toast("Signed in, but Apple didn't trust this computer, so you may need to sign in again sooner.");
+    return showApp();
+  }
+  wizard('interval');
+}
+
+function enterInterval() {
+  $('#interval-title').textContent = 'How often should lastseen check?';
+  $('#untrusted').hidden = W.trusted;
+  $('#interval-pick').hidden = false;
+  $('#first-progress').hidden = true;
+  $('#first-result').hidden = true;
+  $('#interval-skip').hidden = true;
+  $('#interval-go').textContent = 'Start';
+  $('#interval-go').dataset.next = '';
+}
+async function firstCheck() {
+  const err = $('[data-step=interval] .err');
+  const minutes = +($('input[name=wiz-int]:checked')?.value || 15);
+  await post('api/settings', { interval_minutes: minutes });
+  const before = (await api('api/status')).collector.last_poll?.at ?? null;
+  try { await post('api/poll'); } catch (e) { if (e.code !== 'busy') throw e; }
+  $('#interval-pick').hidden = true;
+  $('#first-progress').hidden = false;
+  W.waiting = true;
+  const deadline = Date.now() + 150000;
+  let st = null;
+  try {
+    while (Date.now() < deadline && !$('#screen-wizard').hidden) {
+      await sleep(2000);
+      try { st = await api('api/status'); } catch { continue; }
+      const c = st.collector, at = c.last_poll?.at ?? null;
+      if (c.state === 'needs_login' || (at !== before && c.state !== 'polling')) break;
+    }
+  } finally { W.waiting = false; $('#first-progress').hidden = true; }
+  if (st) S.status = st;
+  const c = st?.collector, lp = c?.last_poll;
+  if (c?.state === 'needs_login') {
+    wizard('apple');
+    showErr($('[data-step=apple] .err'), c.message || 'Apple signed lastseen out. Sign in again.');
+    return;
+  }
+  if (!lp || lp.at === before) {
+    showErr(err, 'This is taking longer than usual. lastseen keeps trying in the background.');
+  } else if (!lp.ok) {
+    showErr(err, lp.error || 'The first check failed.');
+    $('#interval-go').textContent = 'Try again';
+  }
+  if (lp && lp.at !== before && lp.ok) {
+    $('#interval-go').textContent = 'Continue';
+    $('#interval-go').dataset.next = 'service';
+  } else {
+    $('#interval-skip').hidden = false;
+  }
+  await showFirstDevices();
+}
+async function showFirstDevices() {
+  let devs = [];
+  try { devs = await api('api/devices'); } catch { return; }
+  const list = $('#first-devices');
+  list.replaceChildren();
+  const located = devs.filter(d => d.state === 'located').length;
+  $('#first-summary').textContent = devs.length
+    ? `Found ${plural(devs.length, 'device')}; ${located} located.`
+    : 'No devices found yet.';
+  devs.forEach((d, i) => {
+    list.append(h('li', null,
+      h('span', { class: 'sw', style: `--c:${PALETTE[i % PALETTE.length]}` }),
+      h('span', { class: 'grow' }, h('strong', { text: d.name || 'Device' }), d.owner ? h('span', { class: 'owner', text: d.owner }) : null),
+      stateBadge(d, true)));
+  });
+  const notSharing = devs.filter(d => d.is_family && d.state === 'not_sharing');
+  const offline = devs.some(d => d.state === 'offline');
+  const ex = $('#first-explainer');
+  ex.replaceChildren(...(notSharing.length || offline ? explainerNodes(notSharing.map(d => d.owner), notSharing.length > 0) : []));
+  ex.hidden = !notSharing.length && !offline;
+  $('#first-result').hidden = false;
+  $('#interval-title').textContent = 'Your devices';
+}
+$('#interval-go').addEventListener('click', e => {
+  if (e.currentTarget.dataset.next === 'service') return afterInterval();
+  showErr($('[data-step=interval] .err'), '');
+  $('#interval-skip').hidden = true;
+  busy(e.currentTarget, $('[data-step=interval] .err'), firstCheck, false);
+});
+$('#interval-skip').addEventListener('click', afterInterval);
+function afterInterval() {
+  const svc = S.status?.service;
+  if (svc && (svc.supported || S.status.docker)) wizard('service'); else showApp();
+}
+
+function enterService() {
+  const svc = S.status.service;
+  $('#svc-choice').hidden = !svc.supported;
+  $('#svc-detail').textContent = svc.detail || '';
+  $('#svc-check').checked = true;
+  $('#svc-other').hidden = svc.supported;
+  $('#svc-other').textContent = svc.detail || '';
+  save('svc-offered', true);
+}
+$('#svc-finish').addEventListener('click', e => {
+  const btn = e.currentTarget, err = $('[data-step=service] .err');
+  if (!S.status.service.supported || !$('#svc-check').checked || S.status.service.installed) return showApp();
+  if (btn.dataset.failed) return showApp();
+  busy(btn, err, async () => {
+    try { await post('api/service/install'); } catch (ex) {
+      btn.dataset.failed = '1';
+      btn.textContent = 'Continue without it';
+      throw ex;
+    }
+    showApp();
+  });
+});
+
+// ---------- explainer ----------
+function explainerNodes(owners, sharing = true) {
+  const names = [...new Set(owners.filter(Boolean))];
+  const who = names.length ? names.join(' and ') : 'them';
+  return [
+    sharing ? h('p', { text: `Apple only shares a family member's device location when they share their location with you. Ask ${who} to open Settings > [their name] > Family Sharing > Location Sharing and turn it on for you.` }) : null,
+    h('p', { text: "Devices that are off or offline can't be located until they're back online. lastseen keeps checking." }),
+    h('p', { style: 'margin:0', text: "AirTags, items and friends from the People tab aren't available through iCloud on the web." }),
+  ].filter(Boolean);
+}
+function openExplainer(owner) {
+  $('#ex-body').replaceChildren(...explainerNodes([owner]));
+  $('#explain').showModal();
+}
+for (const b of $$('dialog [data-close]')) b.addEventListener('click', () => b.closest('dialog').close());
+
+function confirmBox({ title, text, ok = 'OK', typeWord = null }) {
+  const dlg = $('#confirm');
+  $('#cf-title').textContent = title;
+  $('#cf-text').textContent = text;
+  $('#cf-ok').textContent = ok;
+  $('#cf-type-wrap').hidden = !typeWord;
+  $('#cf-type').value = '';
+  $('#cf-type-label').textContent = typeWord ? `Type ${typeWord} to confirm` : '';
+  $('#cf-ok').disabled = !!typeWord;
+  return new Promise(resolve => {
+    const done = v => { dlg.close(); resolve(v); };
+    $('#cf-type').oninput = () => { $('#cf-ok').disabled = $('#cf-type').value.trim() !== typeWord; };
+    $('#cf-ok').onclick = () => done(true);
+    $('#cf-cancel').onclick = () => done(false);
+    dlg.oncancel = () => resolve(false);
+    dlg.showModal();
+    (typeWord ? $('#cf-type') : $('#cf-cancel')).focus();
+  });
+}
+
+// ---------- main app ----------
+let map, layer, cursorLayer, selCircle, popup, statusTimer, tickTimer;
+
+function stopTimers() { clearTimeout(statusTimer); clearInterval(tickTimer); statusTimer = tickTimer = null; }
+
+function showApp() {
+  show('app');
+  initMap();
+  if (map) map.invalidateSize();
+  renderHeader();
+  S.fitNext = true;
+  loadData(true);
+  scheduleStatus();
+  clearInterval(tickTimer);
+  tickTimer = setInterval(renderHeader, 30000);
+}
+function scheduleStatus() {
+  clearTimeout(statusTimer);
+  const polling = S.status?.collector?.state === 'polling';
+  statusTimer = setTimeout(refreshStatus, polling ? 3000 : 30000);
+}
+async function refreshStatus() {
+  if ($('#screen-app').hidden) return;
+  try {
+    const st = await api('api/status');
+    if (!st.account) return boot();
+    const prev = S.status?.collector?.last_poll?.at;
+    S.status = st;
+    if (!st.account.configured) return wizard('welcome');
+    renderHeader();
+    if ((st.collector.last_poll?.at ?? null) !== (prev ?? null)) await loadData(false);
+    else renderDevices();
+  } catch {}
+  scheduleStatus();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#screen-app').hidden) refreshStatus(); });
+
+function renderHeader() {
+  const st = S.status;
+  if (!st || !st.collector) return;
+  const c = st.collector, line = $('#status-line');
+  let text;
+  if (c.state === 'polling') text = 'Checking now…';
+  else if (c.state === 'retrying') text = `Couldn't reach Apple · retrying at ${fmtTime(c.next_poll_at)}`;
+  else if (c.state === 'needs_login') text = 'Signed out by Apple';
+  else if (c.state === 'not_configured') text = 'Not signed in';
+  else {
+    const parts = [c.last_poll ? `Last check ${ago(c.last_poll.at)}` : 'No checks yet', plural(st.data.devices, 'device')];
+    if (c.next_poll_at) parts.push(`next at ${fmtTime(c.next_poll_at)}`);
+    text = parts.join(' · ');
+  }
+  line.textContent = text;
+  line.title = text;
+  line.classList.toggle('polling', c.state === 'polling');
+  $('#check-now').disabled = ['polling', 'needs_login', 'not_configured'].includes(c.state);
+
+  const banner = $('#app-banner'), btn = $('#app-banner-btn');
+  if (c.state === 'needs_login') {
+    banner.className = 'banner bad';
+    let msg = `lastseen was signed out by Apple, so no new locations have been recorded since ${fmtWhen(c.since)}.`;
+    if (c.reason === 'account_locked' || c.reason === 'accept_terms') msg += ' ' + c.message;
+    $('#app-banner-text').textContent = msg;
+    btn.hidden = false;
+    banner.hidden = false;
+  } else if (c.state === 'idle' && c.reason && c.message) {
+    banner.className = 'banner warn';
+    $('#app-banner-text').textContent = c.message;
+    btn.hidden = true;
+    banner.hidden = false;
+  } else banner.hidden = true;
+  renderSvcBanner();
+}
+let svcBannerClosed = false;
+function renderSvcBanner() {
+  const st = S.status, svc = st?.service;
+  const show = !!svc && svc.supported && !svc.installed && st.account?.configured && !svcBannerClosed
+    && !load('svc-offered');
+  $('#svc-banner').hidden = !show;
+}
+$('#svc-banner-on').addEventListener('click', e => {
+  busy(e.currentTarget, null, async () => {
+    const res = await post('api/service/install');
+    S.status.service = res.service;
+    save('svc-offered', true);
+    renderSvcBanner();
+    toast('lastseen will start automatically.');
+  });
+});
+$('#svc-banner-off').addEventListener('click', () => {
+  svcBannerClosed = true;
+  save('svc-offered', true);
+  renderSvcBanner();
+});
+$('#app-banner-btn').addEventListener('click', () => wizard('apple', { relogin: true }));
+$('#check-now').addEventListener('click', e => {
+  busy(e.currentTarget, null, async () => {
+    await post('api/poll');
+    S.status.collector.state = 'polling';
+    scheduleStatus();
+  }).then(renderHeader);
+});
+
+// ---------- data ----------
+function rangeBounds() {
+  const r = S.range;
+  if (r.preset === 'custom') return { start: r.start, end: r.end };
+  const span = RANGES[r.preset];
+  return { start: span ? Math.floor(Date.now() - span) : null, end: null };
+}
+function selectedIds() { return S.devices.filter(d => !S.hidden.has(d.id)).map(d => d.id); }
+function rangeQuery(ids) {
+  const q = new URLSearchParams();
+  for (const id of ids) q.append('device', id);
+  if (S.start != null) q.set('start', String(Math.max(0, Math.floor(S.start))));
+  if (S.end != null) q.set('end', String(Math.floor(S.end)));
+  return q;
+}
+async function loadData(fit) {
+  const seq = ++S.seq;
+  try {
+    const devs = await api('api/devices');
+    if (seq !== S.seq) return;
+    setDevices(devs);
+    const b = rangeBounds();
+    S.start = b.start; S.end = b.end;
+    const ids = selectedIds();
+    let res = { fixes: [], truncated: false, limit: 0 };
+    if (ids.length) res = await api('api/fixes?' + rangeQuery(ids));
+    if (seq !== S.seq) return;
+    S.fixes = res.fixes; S.truncated = res.truncated; S.limit = res.limit;
+    if (fit) S.fitNext = true;
+    render();
+  } catch (e) {
+    if (e.code !== 'network' && e.code !== 'auth_required') toast(e.message, true);
+  }
+}
+function setDevices(devs) {
+  S.devices = devs;
+  S.meta = new Map(devs.map((d, i) => [d.id, { color: PALETTE[i % PALETTE.length], name: d.name || d.display_name || 'Device', dev: d }]));
+}
+const colorOf = id => S.meta.get(id)?.color || GRAY;
+const nameOf = id => S.meta.get(id)?.name || 'Device';
+
+function render() {
+  const fresh = S.fitNext;
+  S.byDev = new Map();
+  for (const f of S.fixes) {
+    if (!S.byDev.has(f.device_id)) S.byDev.set(f.device_id, []);
+    S.byDev.get(f.device_id).push(f);
+  }
+  buildStays();
+  renderDevices();
+  renderMap();
+  renderTimeline();
+  renderScrubber(fresh);
+  renderDownloads();
+}
+
+// ---------- devices ----------
+function stateBadge(d, wizardMode) {
+  const last = d.last_fix;
+  switch (d.state) {
+    case 'located':
+      return h('span', { class: 'badge ok', text: `Located ${ago(last || d.state_at)}` });
+    case 'not_sharing':
+      return h('button', {
+        type: 'button', class: 'badge warn', text: 'Not sharing location',
+        title: 'Why is there no location?', onclick: e => { e.preventDefault(); openExplainer(d.owner); },
+      });
+    case 'offline':
+      return h('span', { class: 'badge', text: last ? `Offline · last seen ${ago(last)}` : 'Offline' });
+    case 'no_location':
+      return h('span', { class: 'badge', text: last && !wizardMode ? `No location now · last seen ${ago(last)}` : 'No location yet' });
+    default:
+      return last ? h('span', { class: 'badge', text: `Seen ${ago(last)}` }) : h('span', { class: 'badge', text: 'No location yet' });
+  }
+}
+function renderDevices() {
+  const list = $('#dev-list');
+  if (!list) return;
+  const items = S.devices.map(d => {
+    const cb = h('input', { type: 'checkbox', 'aria-label': `Show ${nameOf(d.id)}` });
+    cb.checked = !S.hidden.has(d.id);
+    cb.addEventListener('change', () => {
+      cb.checked ? S.hidden.delete(d.id) : S.hidden.add(d.id);
+      save('hidden', [...S.hidden]);
+      loadData(false);
+    });
+    const meta = h('div', { class: 'dev-meta' }, stateBadge(d),
+      d.battery_level != null ? h('span', { text: `Battery ${Math.round(d.battery_level * 100)}%` }) : null);
+    return h('li', { class: 'dev' },
+      h('label', null, cb,
+        h('span', { class: 'sw', style: `--c:${colorOf(d.id)}` }),
+        h('span', { class: 'dev-text' },
+          h('span', { class: 'dev-name', text: nameOf(d.id), title: d.display_name || '' }),
+          d.owner ? h('span', { class: 'dev-owner', text: d.owner }) : null)),
+      meta);
+  });
+  if (!items.length) {
+    const c = S.status?.collector;
+    items.push(h('li', { class: 'empty', text: c && !c.last_poll ? 'Your devices appear after the first check.' : 'No devices found.' }));
+  }
+  list.replaceChildren(...items);
+  devicesOverflow();
+}
+function devicesOverflow() {
+  const box = $('#devices');
+  box.classList.toggle('more-below', box.scrollHeight - box.scrollTop - box.clientHeight > 4);
+}
+$('#devices').addEventListener('scroll', devicesOverflow, { passive: true });
+window.addEventListener('resize', devicesOverflow);
+
+// ---------- map ----------
+function initMap() {
+  if (map || !window.L) {
+    if (!window.L) $('#map-off').hidden = false;
+    return;
+  }
+  map = L.map('map', { preferCanvas: true, zoomControl: false, worldCopyJump: true }).setView([30, 0], 2);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  const Fit = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const box = L.DomUtil.create('div', 'leaflet-bar');
+      const a = h('a', { href: '#', class: 'fit', role: 'button', title: 'Show all locations', 'aria-label': 'Show all locations', text: 'Fit' });
+      a.addEventListener('click', e => { e.preventDefault(); fitAll(); });
+      box.append(a);
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    },
+  });
+  map.addControl(new Fit());
+  layer = L.layerGroup().addTo(map);
+  cursorLayer = L.layerGroup().addTo(map);
+  popup = L.popup({ maxWidth: 280, autoPanPadding: [30, 30] });
+  map.on('popupclose', () => { if (selCircle) { selCircle.remove(); selCircle = null; } });
+  map.on('zoomend', updateLabels);
+  if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize({ pan: false })).observe($('#map'));
+}
+function fitAll() {
+  if (!map) return;
+  map.invalidateSize({ pan: false });
+  const pts = S.fixes.filter(f => !(f.h_accuracy > 1000)).map(f => [f.lat, f.lon]);
+  if (!pts.length) for (const f of S.fixes) pts.push([f.lat, f.lon]);
+  if (!pts.length) return;
+  if (pts.length === 1) map.setView(pts[0], 15);
+  else map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+}
+function renderMap() {
+  if (!map) return;
+  layer.clearLayers();
+  cursorLayer.clearLayers();
+  const interval = (S.status?.settings?.interval_minutes || 15) * 60000;
+  const gap = Math.max(3 * interval, HOUR);
+  const permanent = S.byDev.size <= 8;
+  S.labels = [];
+  for (const [id, fx] of S.byDev) {
+    const color = colorOf(id);
+    const segs = [[]];
+    let prev = null;
+    for (const f of fx) {
+      if (f.h_accuracy > 1000) continue;
+      if (prev && f.ts - prev.ts > gap) segs.push([]);
+      segs[segs.length - 1].push([f.lat, f.lon]);
+      prev = f;
+    }
+    for (const s of segs) if (s.length > 1) L.polyline(s, { color, weight: 3, opacity: .7, interactive: false }).addTo(layer);
+    if (fx.length > 2000) {
+      for (const st of S.stays) if (st.id === id) dot(st.last, color, false, [st.lat, st.lon]);
+    } else {
+      for (const f of fx) dot(f, color, f.h_accuracy > 1000);
+    }
+    const last = fx[fx.length - 1];
+    if (last.h_accuracy) L.circle([last.lat, last.lon], { radius: last.h_accuracy, color, weight: 1, opacity: .4, fillOpacity: .08, interactive: false }).addTo(layer);
+    const m = L.circleMarker([last.lat, last.lon], { radius: 9, color, weight: 4, fillColor: '#ffffff', fillOpacity: 1 })
+      .bindTooltip(h('span', { text: nameOf(id) }), { direction: 'top', offset: [0, -10], className: 'dev-tip', permanent })
+      .on('click', () => selectFix(last, false))
+      .addTo(layer);
+    if (permanent) {
+      const label = { m, ll: L.latLng(last.lat, last.lon), ts: last.ts, hidden: false };
+      m.on('mouseover', () => m.openTooltip()).on('mouseout', () => { if (label.hidden) m.closeTooltip(); });
+      S.labels.push(label);
+    }
+  }
+  S.labels.sort((a, b) => b.ts - a.ts);
+  updateLabels();
+  if (S.sel && !S.fixes.includes(S.sel)) {
+    const same = S.fixes.find(f => f.device_id === S.sel.device_id && f.ts === S.sel.ts);
+    if (same) S.sel = same;
+    else if (map.hasLayer(popup)) map.closePopup();
+  }
+  if (S.fitNext) { S.fitNext = false; fitAll(); }
+}
+// Name labels that would overlap another (newer) device's label show on hover only.
+function updateLabels() {
+  if (!map || !S.labels) return;
+  const placed = [];
+  for (const lb of S.labels) {
+    const p = map.latLngToContainerPoint(lb.ll);
+    lb.hidden = placed.some(q => Math.abs(q.x - p.x) < 110 && Math.abs(q.y - p.y) < 28);
+    if (lb.hidden) lb.m.closeTooltip();
+    else { lb.m.openTooltip(); placed.push(p); }
+  }
+}
+function dot(f, color, faint, at) {
+  L.circleMarker(at || [f.lat, f.lon], {
+    radius: faint ? 3 : 4, color, weight: 1, opacity: faint ? .35 : .9,
+    fillColor: color, fillOpacity: faint ? .12 : .75,
+  }).on('click', () => selectFix(f, false)).addTo(layer);
+}
+function popupFor(f) {
+  const name = nameOf(f.device_id);
+  const lines = [h('strong', { text: name }), h('div', { text: `${fmtDate(f.ts)} · ${fmtTime(f.ts)} · ${ago(f.ts)}` })];
+  if (f.h_accuracy != null) lines.push(h('div', { text: `Accurate to about ${fmtDist(f.h_accuracy)}` }));
+  if (f.battery_level != null) lines.push(h('div', { text: `Battery ${Math.round(f.battery_level * 100)}%` }));
+  const pt = posType(f.position_type);
+  if (pt) lines.push(h('div', { class: 'muted', text: `Located using ${pt}` }));
+  if (f.is_old) lines.push(h('div', { class: 'old', text: 'Old location reported by Apple' }));
+  const ll = `${f.lat},${f.lon}`;
+  lines.push(h('div', { class: 'links' },
+    h('a', { href: `https://maps.apple.com/?ll=${ll}&q=${encodeURIComponent(name)}`, target: '_blank', rel: 'noopener noreferrer', text: 'Open in Apple Maps' }),
+    h('a', { href: `https://www.google.com/maps?q=${ll}`, target: '_blank', rel: 'noopener noreferrer', text: 'Google Maps' })));
+  return h('div', { class: 'pop' }, lines);
+}
+function selectFix(f, fly) {
+  S.sel = f;
+  if (map) {
+    if (selCircle) selCircle.remove();
+    const acc = f.h_accuracy || 0;
+    selCircle = acc ? L.circle([f.lat, f.lon], { radius: acc, color: colorOf(f.device_id), weight: 1, fillOpacity: acc > 500 ? .04 : .1, interactive: false }).addTo(map) : null;
+    if (fly && acc > 150) map.flyToBounds(L.latLng(f.lat, f.lon).toBounds(acc * 2.2), { duration: .6, maxZoom: 16 });
+    else if (fly) map.flyTo([f.lat, f.lon], Math.max(map.getZoom(), 16), { duration: .6 });
+    popup.setLatLng([f.lat, f.lon]).setContent(popupFor(f)).openOn(map);
+  }
+  highlightRow(f, !fly);
+}
+
+// ---------- timeline ----------
+function buildStays() {
+  const stays = [];
+  for (const [id, fx] of S.byDev) {
+    let cur = null;
+    for (const f of fx) {
+      if (f.h_accuracy > 1000) {
+        stays.push({ id, lat: f.lat, lon: f.lon, n: 1, start: f.ts, end: f.ts, last: f, fixes: [f], approx: true });
+        continue;
+      }
+      const thr = Math.max(75, Math.min(300, f.h_accuracy || 0));
+      if (cur && distM(cur.lat, cur.lon, f.lat, f.lon) <= thr) {
+        cur.n++;
+        cur.lat += (f.lat - cur.lat) / cur.n;
+        cur.lon += (f.lon - cur.lon) / cur.n;
+        cur.end = f.ts; cur.last = f; cur.fixes.push(f);
+      } else {
+        cur = { id, lat: f.lat, lon: f.lon, n: 1, start: f.ts, end: f.ts, last: f, fixes: [f] };
+        stays.push(cur);
+      }
+    }
+  }
+  stays.sort((a, b) => b.end - a.end);
+  S.stays = stays;
+  S.stayOf = new Map();
+  stays.forEach((st, i) => { for (const f of st.fixes) S.stayOf.set(f, i); });
+}
+function rowFor(st) {
+  const sameDay = new Date(st.start).toDateString() === new Date(st.end).toDateString();
+  const from = sameDay ? fmtTime(st.start) : `${dayLabel(st.start)} ${fmtTime(st.start)}`;
+  const title = st.n > 1 && st.end > st.start
+    ? `Stayed · ${from} – ${fmtTime(st.end)} (${fmtDur(st.end - st.start)})`
+    : `Seen · ${fmtTime(st.end)}${st.approx ? ` · approximate (within ${fmtDist(st.last.h_accuracy)})` : ''}`;
+  const owner = S.meta.get(st.id)?.dev?.owner;
+  const btn = h('button', { type: 'button', class: 'row' },
+    h('span', { class: 'sw', style: `--c:${colorOf(st.id)}` }),
+    h('span', null,
+      h('span', { class: 'row-title', text: title }),
+      h('span', { class: 'row-sub', text: owner ? `${nameOf(st.id)} · ${owner}` : nameOf(st.id) })));
+  btn.addEventListener('click', () => selectFix(st.last, true));
+  return btn;
+}
+function renderTimeline() {
+  const body = $('#tl-body');
+  S.rowEls = new Map();
+  S.shown = 0;
+  S.lastDay = null;
+  const nodes = [];
+  if (S.truncated) nodes.push(h('p', { class: 'note warn tl-note', text: `Showing the latest ${S.limit.toLocaleString()} locations. Narrow the range to see more.` }));
+  if (!S.devices.length || !selectedIds().length) {
+    const c = S.status?.collector;
+    const msg = !S.devices.length
+      ? (c && !c.last_poll ? 'Getting the first locations… this takes up to a minute.' : 'No devices yet.')
+      : "Select a device to see where it's been.";
+    nodes.push(h('div', { class: 'empty' }, h('p', { text: msg })));
+    body.replaceChildren(...nodes);
+    return;
+  }
+  if (!S.stays.length) {
+    const empty = h('div', { class: 'empty' }, h('p', { text: 'No locations in this range.' }));
+    const sel = new Set(selectedIds());
+    const known = S.devices.filter(d => sel.has(d.id) && d.last_fix && (S.start == null || d.last_fix < S.start))
+      .sort((a, b) => b.last_fix - a.last_fix)[0];
+    if (known) {
+      const btn = h('button', { type: 'button', class: 'link', text: 'Show it' });
+      btn.addEventListener('click', () => {
+        const age = Date.now() - known.last_fix;
+        setRange(age < 7 * DAY ? '7d' : age < 30 * DAY ? '30d' : 'all');
+      });
+      empty.append(h('p', null, `Last known location: ${fmtWhen(known.last_fix)} `, btn));
+    }
+    const fam = S.devices.filter(d => sel.has(d.id) && d.state === 'not_sharing');
+    if (fam.length) {
+      const why = h('button', { type: 'button', class: 'link', text: 'Why are some devices missing?' });
+      why.addEventListener('click', () => openExplainer(fam[0].owner));
+      empty.append(h('p', null, why));
+    }
+    nodes.push(empty);
+    body.replaceChildren(...nodes);
+    return;
+  }
+  body.replaceChildren(...nodes);
+  showMoreRows(PAGE);
+}
+function showMoreRows(count) {
+  const body = $('#tl-body');
+  $('.more', body)?.remove();
+  const end = Math.min(S.stays.length, S.shown + count);
+  const frag = document.createDocumentFragment();
+  for (let i = S.shown; i < end; i++) {
+    const st = S.stays[i];
+    const day = new Date(st.end).toDateString();
+    if (day !== S.lastDay) { frag.append(h('div', { class: 'day', text: dayLabel(st.end) })); S.lastDay = day; }
+    const el = rowFor(st);
+    S.rowEls.set(i, el);
+    frag.append(el);
+  }
+  S.shown = end;
+  if (end < S.stays.length) {
+    const more = h('button', { type: 'button', class: 'more', text: `Show more (${(S.stays.length - end).toLocaleString()} left)` });
+    more.addEventListener('click', () => showMoreRows(PAGE));
+    frag.append(more);
+  }
+  body.append(frag);
+}
+function highlightRow(f, scroll) {
+  for (const el of $$('.row.sel')) el.classList.remove('sel');
+  const i = S.stayOf.get(f);
+  if (i == null) return;
+  if (i >= S.shown) showMoreRows(i - S.shown + 1);
+  const el = S.rowEls.get(i);
+  if (!el) return;
+  el.classList.add('sel');
+  if (scroll) el.scrollIntoView({ block: 'nearest' });
+}
+
+// ---------- scrubber ----------
+function renderScrubber(reset) {
+  const box = $('#scrub'), input = $('#scrub-input');
+  if (!map || S.fixes.length < 2) { box.hidden = true; return; }
+  const min = S.start ?? S.fixes[0].ts, max = S.end ?? Date.now();
+  const prev = box.hidden || reset ? null : +input.value, wasEnd = prev == null || prev >= +input.max - 60000;
+  input.min = String(min); input.max = String(max);
+  box.hidden = false;
+  if (!wasEnd && prev >= min && prev <= max) {
+    input.value = String(prev);
+    input.dispatchEvent(new Event('input'));
+    return;
+  }
+  input.value = String(max);
+  $('#scrub-label').textContent = 'Now';
+  input.setAttribute('aria-valuetext', 'Now');
+}
+function lastAtOrBefore(arr, t) {
+  let lo = 0, hi = arr.length - 1, ans = -1;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (arr[mid].ts <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+  return ans < 0 ? null : arr[ans];
+}
+let scrubFrame = 0;
+$('#scrub-input').addEventListener('input', () => {
+  cancelAnimationFrame(scrubFrame);
+  scrubFrame = requestAnimationFrame(() => {
+    const input = $('#scrub-input'), t = +input.value, atEnd = t >= +input.max - 60000;
+    const label = atEnd ? 'Now' : `${dayLabel(t)} ${fmtTime(t)}`;
+    $('#scrub-label').textContent = label;
+    input.setAttribute('aria-valuetext', label);
+    cursorLayer.clearLayers();
+    if (atEnd) { for (const el of $$('.row.sel')) el.classList.remove('sel'); return; }
+    let newest = null;
+    for (const [id, fx] of S.byDev) {
+      const f = lastAtOrBefore(fx, t);
+      if (!f) continue;
+      L.circleMarker([f.lat, f.lon], { radius: 12, color: colorOf(id), weight: 4, fill: false, interactive: false }).addTo(cursorLayer);
+      if (!newest || f.ts > newest.ts) newest = f;
+    }
+    if (newest) highlightRow(newest, true);
+  });
+});
+
+// ---------- downloads ----------
+function renderDownloads() {
+  const ok = S.fixes.length > 0 && selectedIds().length > 0;
+  for (const fmt of ['gpx', 'csv']) {
+    const a = $('#dl-' + fmt);
+    if (ok) {
+      const q = rangeQuery(selectedIds());
+      q.set('format', fmt);
+      a.href = 'api/export?' + q;
+      a.removeAttribute('aria-disabled');
+    } else {
+      a.removeAttribute('href');
+      a.setAttribute('aria-disabled', 'true');
+    }
+  }
+  $('#dl-none').hidden = ok;
+}
+for (const a of $$('.menu-list a')) a.addEventListener('click', () => { $('#dl-menu').open = false; });
+document.addEventListener('click', e => { const m = $('#dl-menu'); if (m.open && !m.contains(e.target)) m.open = false; });
+
+// ---------- range ----------
+function setRange(preset) {
+  S.range.preset = preset;
+  for (const b of $$('#range-btns button')) b.setAttribute('aria-pressed', String(b.dataset.range === preset));
+  const custom = preset === 'custom';
+  $('#custom').hidden = !custom;
+  if (custom) {
+    const b = { start: S.start ?? (S.fixes[0]?.ts || Date.now() - DAY), end: S.end ?? Date.now() };
+    S.range.start = b.start; S.range.end = b.end;
+    $('#from').value = toLocalInput(b.start);
+    $('#to').value = toLocalInput(b.end);
+    showErr($('#custom-err'), '');
+  }
+  if (map) map.closePopup();
+  loadData(true);
+}
+for (const b of $$('#range-btns button')) b.addEventListener('click', () => setRange(b.dataset.range));
+function customChanged() {
+  const from = $('#from').value ? new Date($('#from').value).getTime() : null;
+  const to = $('#to').value ? new Date($('#to').value).getTime() : null;
+  if (from != null && to != null && from > to) return showErr($('#custom-err'), 'From must be before To');
+  showErr($('#custom-err'), '');
+  S.range.start = from; S.range.end = to != null ? to + 59999 : null;
+  loadData(true);
+}
+$('#from').addEventListener('change', customChanged);
+$('#to').addEventListener('change', customChanged);
+
+// ---------- settings ----------
+const RETENTION_LABEL = { 30: '30 days', 90: '90 days', 180: '180 days', 365: '1 year', 730: '2 years' };
+function ensureOption(sel, value, label) {
+  if (![...sel.options].some(o => o.value === String(value))) sel.append(h('option', { value: String(value), text: label }));
+  sel.value = String(value);
+}
+$('#open-settings').addEventListener('click', async () => {
+  try { S.status = await api('api/status'); } catch { return; }
+  if (!S.status.account) return boot();
+  fillSettings();
+  for (const e of $$('#settings .err')) showErr(e, '');
+  $('#set-polls').open = false;
+  $('#settings').showModal();
+});
+function fillSettings() {
+  const st = S.status, c = st.collector, a = st.auth;
+  const kv = [];
+  const add = (k, v) => kv.push(h('dt', { text: k }), h('dd', { text: v }));
+  add('Last check', c.last_poll ? `${fmtWhen(c.last_poll.at)}${c.last_poll.ok ? '' : ' (failed)'}` : 'Not yet');
+  add('Next check', c.next_poll_at ? fmtWhen(c.next_poll_at) : c.state === 'polling' ? 'Checking now' : '—');
+  add('Recording since', st.data.since ? fmtWhen(st.data.since) : '—');
+  add('Locations saved', st.data.fixes.toLocaleString());
+  $('#set-status').replaceChildren(...kv);
+  $('#set-dir').value = st.data.dir;
+
+  ensureOption($('#set-interval'), st.settings.interval_minutes, `Every ${st.settings.interval_minutes} minutes`);
+  ensureOption($('#set-retention'), st.settings.retention_days, `${st.settings.retention_days} days`);
+
+  const svc = st.service;
+  $('#set-svc-wrap').hidden = !svc.supported;
+  $('#set-svc').checked = svc.installed;
+  $('#set-svc-detail').textContent = svc.detail || '';
+
+  $('#set-pw-state').textContent = a.password_set
+    ? 'lastseen asks for this password before showing your history.'
+    : 'Anyone who can open this page can see your history. Add a password if others use this computer.';
+  $('#set-pw-cur-wrap').hidden = !a.password_set;
+  $('#set-pw-save').textContent = a.password_set ? 'Change password' : 'Set password';
+  $('#set-pw-remove').hidden = !(a.password_set && a.can_remove_password);
+  $('#set-lock').hidden = !a.password_set;
+  for (const id of ['#set-pw-cur', '#set-pw-new', '#set-pw-new2']) $(id).value = '';
+
+  $('#set-acct').textContent = st.account.apple_id ? `Signed in to Apple as ${st.account.apple_id}` : 'Not signed in';
+  $('#set-cred').textContent = {
+    keyring: 'Password saved in your system keychain.',
+    file: "Password saved in lastseen's private data folder (readable by anyone with access to that folder).",
+  }[st.account.credential_store] || '';
+  $('#set-relogin').hidden = c.state !== 'needs_login';
+  $('#set-version').textContent = st.version;
+}
+$('#set-dir-copy').addEventListener('click', async () => {
+  const input = $('#set-dir');
+  try { await navigator.clipboard.writeText(input.value); } catch {
+    input.select();
+    try { document.execCommand('copy'); } catch {}
+  }
+  toast('Copied');
+});
+async function saveSettings(body) {
+  const res = await post('api/settings', body);
+  S.status.settings = res.settings;
+  toast('Saved');
+  refreshStatus();
+}
+$('#set-interval').addEventListener('change', e => {
+  const sel = e.currentTarget, old = S.status.settings.interval_minutes;
+  saveSettings({ interval_minutes: +sel.value }).catch(err => { sel.value = String(old); showErr($('#set-check-err'), err.message); });
+});
+$('#set-retention').addEventListener('change', async e => {
+  const sel = e.currentTarget, old = S.status.settings.retention_days, val = +sel.value;
+  if (val > 0 && (old === 0 || val < old)) {
+    const ok = await confirmBox({ title: 'Keep less history?', text: `Locations older than ${RETENTION_LABEL[val] || val + ' days'} will be deleted.`, ok: 'Delete older locations' });
+    if (!ok) { sel.value = String(old); return; }
+  }
+  saveSettings({ retention_days: val }).catch(err => { sel.value = String(old); showErr($('#set-check-err'), err.message); });
+});
+$('#set-svc').addEventListener('change', e => {
+  const cb = e.currentTarget, on = cb.checked;
+  cb.disabled = true;
+  showErr($('#set-svc-err'), '');
+  post(on ? 'api/service/install' : 'api/service/uninstall').then(res => {
+    S.status.service = res.service;
+    cb.checked = res.service.installed;
+    toast(on ? 'lastseen will start automatically.' : "lastseen won't start automatically anymore.");
+  }).catch(err => { cb.checked = !on; showErr($('#set-svc-err'), err.message); })
+    .finally(() => { cb.disabled = false; });
+});
+$('#set-pw-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const err = $('#set-pw-err'), a = S.status.auth;
+  const pw = $('#set-pw-new').value, problem = pwPair(pw, $('#set-pw-new2').value);
+  if (a.password_set && !$('#set-pw-cur').value) return showErr(err, 'Enter your current password.');
+  if (problem) return showErr(err, problem);
+  busy($('#set-pw-save'), err, async () => {
+    await post('api/access-password', { password: pw, current_password: $('#set-pw-cur').value || undefined });
+    S.status = await api('api/status');
+    fillSettings();
+    toast('Password saved');
+  });
+});
+$('#set-pw-remove').addEventListener('click', e => {
+  const err = $('#set-pw-err');
+  if (!$('#set-pw-cur').value) return showErr(err, 'Enter your current password to remove it.');
+  busy(e.currentTarget, err, async () => {
+    await post('api/access-password', { password: null, current_password: $('#set-pw-cur').value });
+    S.status = await api('api/status');
+    fillSettings();
+    toast('Password removed');
+  });
+});
+$('#set-lock').addEventListener('click', async () => {
+  try { await post('api/session/logout'); } catch {}
+  $('#settings').close();
+  boot();
+});
+$('#set-relogin').addEventListener('click', () => { $('#settings').close(); wizard('apple', { relogin: true }); });
+$('#set-signout').addEventListener('click', async e => {
+  const ok = await confirmBox({
+    title: 'Sign out of Apple?',
+    text: 'lastseen will stop recording and forget your Apple password. Your history is kept.',
+    ok: 'Sign out',
+  });
+  if (!ok) return;
+  busy(e.currentTarget, $('#set-acct-err'), async () => {
+    await post('api/icloud/logout');
+    $('#settings').close();
+    $('#apple-id').value = '';
+    boot();
+  });
+});
+$('#set-delete').addEventListener('click', async e => {
+  const ok = await confirmBox({ title: 'Delete all history?', text: 'Every recorded location will be permanently deleted.', ok: 'Delete everything', typeWord: 'DELETE' });
+  if (!ok) return;
+  busy(e.currentTarget, $('#set-delete-err'), async () => {
+    await post('api/history/delete', { confirm: 'DELETE' });
+    toast('History deleted');
+    S.status = await api('api/status');
+    fillSettings();
+    loadData(true);
+  });
+});
+$('#set-polls').addEventListener('toggle', async e => {
+  if (!e.currentTarget.open) return;
+  const list = $('#set-polls-list');
+  list.replaceChildren(h('li', { class: 'muted', text: 'Loading…' }));
+  try {
+    const polls = await api('api/polls?limit=20');
+    list.replaceChildren(...(polls.length ? polls.map(p => h('li', null,
+      h('div', { text: fmtWhen(p.polled_at) }),
+      p.ok
+        ? h('div', { class: 'muted', text: `${plural(p.devices, 'device')} · ${plural(p.new_fixes, 'new location')}` })
+        : h('div', { class: 'bad', text: p.error || 'This check failed.' }))) : [h('li', { class: 'muted', text: 'No checks yet.' })]));
+  } catch (err) { list.replaceChildren(h('li', { class: 'bad', text: err.message })); }
+});
+
+boot();
+</script>
+</body>
+</html>

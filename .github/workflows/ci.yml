@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - name: Check wheel contents
+        run: |
+          python3 - <<'PY'
+          import glob, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          assert "lastseen/static/index.html" in names, names
+          assert "lastseen/__main__.py" in names, names
+          PY
+      - run: uvx --from dist/*.whl lastseen --version
+      - run: sh -n install.sh
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t lastseen:ci .
+      - run: docker run -d --name lastseen -p 8765:8765 lastseen:ci
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/api/health && exit 0
+            sleep 1
+          done
+          docker logs lastseen
+          exit 1
+      - name: Setup link is printed
+        run: |
+          docker logs lastseen 2>&1 | tee /dev/stderr | grep -q "?setup="
+      - if: always()
+        run: docker rm -f lastseen

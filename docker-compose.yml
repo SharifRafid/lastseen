@@ -1,0 +1,18 @@
+# First run: `docker compose up -d`, then `docker compose logs lastseen`
+# and open the "?setup=..." link it prints to choose a password and sign in.
+services:
+  lastseen:
+    build: .
+    # image: ghcr.io/sharifrafid/lastseen:latest
+    container_name: lastseen
+    ports:
+      - "8765:8765"            # use "127.0.0.1:8765:8765" to allow only this machine
+    volumes:
+      - lastseen-data:/data
+    environment:
+      TZ: UTC                  # optional: your time zone, e.g. Europe/Berlin
+    restart: unless-stopped
+    init: true
+
+volumes:
+  lastseen-data:

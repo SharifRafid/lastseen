@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# lastseen data (never commit)
+/data/
+*.db
+*.db-wal
+*.db-shm
+session/
+config.json
+credentials.json
+secret.key
+setup-token
+*.log
+*.lock
+!uv.lock
+.env
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
